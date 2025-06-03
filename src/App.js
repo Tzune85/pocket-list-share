@@ -78,6 +78,8 @@ function App() {
     const [userId, setUserId] = useState(null);
     const [currentPage, setCurrentPage] = useState('auth');
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const [pendingNickname, setPendingNickname] = useState(null);
+    const [currentUserProfile, setCurrentUserProfile] = useState(null);
     const isOnline = useNetworkStatus();
 
     useEffect(() => {
@@ -85,6 +87,20 @@ function App() {
             showMessage('Sei offline. Alcune funzionalità potrebbero non essere disponibili.', 'error');
         }
     }, [isOnline]);
+
+    // Listen for current user's profile
+    useEffect(() => {
+        if (!userId || !db) return;
+
+        const userProfileRef = doc(db, 'users', userId);
+        const unsubscribe = onSnapshot(userProfileRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setCurrentUserProfile(docSnap.data());
+            }
+        });
+
+        return () => unsubscribe();
+    }, [userId, db]);
 
     useEffect(() => {
         // Firebase Authentication Listener
@@ -105,9 +121,11 @@ function App() {
                     // Create user profile if it doesn't exist
                     if (!userProfileSnap.exists()) {
                         await setDoc(userProfileRef, {
-                            displayName: currentUser.email || `Utente-${currentUser.uid.substring(0, 8)}`,
+                            displayName: pendingNickname || `Utente-${currentUser.uid.substring(0, 8)}`,
+                            email: currentUser.email,
                             friends: []
                         });
+                        setPendingNickname(null); // Clear the pending nickname after use
                     }
 
                     // Create empty collection if it doesn't exist
@@ -125,13 +143,18 @@ function App() {
             } else {
                 setUser(null);
                 setUserId(null);
+                setCurrentUserProfile(null);
                 setCurrentPage('auth');
             }
             setIsAuthReady(true);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [pendingNickname]);
+
+    const handleRegister = (nickname) => {
+        setPendingNickname(nickname);
+    };
 
     const handleSignOut = async () => {
         try {
@@ -203,7 +226,7 @@ function App() {
                                 onClick={handleSignOut}
                                 className="px-6 py-2 rounded-lg font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 shadow-md"
                             >
-                                Disconnetti ({user.email || 'Anonimo'})
+                                Disconnetti ({currentUserProfile?.displayName || 'Caricamento...'})
                             </button>
                         </>
                     ) : (
@@ -243,7 +266,8 @@ function App() {
                     <Auth 
                         auth={auth} 
                         setCurrentPage={setCurrentPage} 
-                        showMessage={showMessage} 
+                        showMessage={showMessage}
+                        onRegister={handleRegister}
                     />
                 )}
             </main>
@@ -252,16 +276,22 @@ function App() {
 }
 
 // Auth Component
-function Auth({ auth, setCurrentPage, showMessage }) {
+function Auth({ auth, setCurrentPage, showMessage, onRegister }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [nickname, setNickname] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
 
     const handleAuthAction = async (e) => {
         e.preventDefault();
         try {
             if (isRegistering) {
-                await createUserWithEmailAndPassword(auth, email, password);
+                if (!nickname.trim()) {
+                    showMessage('Il nickname è obbligatorio per la registrazione', 'error');
+                    return;
+                }
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                onRegister(nickname); // Pass the nickname to the parent component
                 showMessage('Registrazione riuscita! Benvenuto!', 'success');
             } else {
                 await signInWithEmailAndPassword(auth, email, password);
@@ -293,6 +323,21 @@ function Auth({ auth, setCurrentPage, showMessage }) {
                         required
                     />
                 </div>
+                {isRegistering && (
+                    <div>
+                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nickname">
+                            Nickname:
+                        </label>
+                        <input
+                            type="text"
+                            id="nickname"
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            className="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-red-400"
+                            required
+                        />
+                    </div>
+                )}
                 <div>
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
                         Password:
@@ -316,7 +361,10 @@ function Auth({ auth, setCurrentPage, showMessage }) {
             <p className="text-center text-gray-600 text-sm mt-4">
                 {isRegistering ? 'Hai già un account?' : 'Non hai un account?'}{' '}
                 <button
-                    onClick={() => setIsRegistering(!isRegistering)}
+                    onClick={() => {
+                        setIsRegistering(!isRegistering);
+                        setNickname(''); // Reset nickname when switching modes
+                    }}
                     className="text-blue-500 hover:text-blue-700 font-semibold"
                 >
                     {isRegistering ? 'Accedi qui' : 'Registrati qui'}
@@ -590,10 +638,17 @@ function Collection({ userId, db }) {
 function Friends({ userId, user, db }) {
     const [userProfile, setUserProfile] = useState(null);
     const [friendIdInput, setFriendIdInput] = useState('');
-    const [viewingFriendCollection, setViewingFriendCollection] = useState(null); // userId of friend being viewed
+    const [viewingFriendCollection, setViewingFriendCollection] = useState(null);
     const [friendCollectionData, setFriendCollectionData] = useState({});
-    const [allPokemonCards, setAllPokemonCards] = useState([]); // Needed to display friend's collection names
-    const [error, setError] = useState(null); // Local error state for Friends component
+    const [viewingFriendProfile, setViewingFriendProfile] = useState(null);
+    const [showDetailedCollection, setShowDetailedCollection] = useState(false);
+    const [friendPokemonCards, setFriendPokemonCards] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [sets, setSets] = useState([]);
+    const [currentSet, setCurrentSet] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [expansionStats, setExpansionStats] = useState({});
 
     // Fetch all Pokémon cards once for friend's collection display
     useEffect(() => {
@@ -608,7 +663,7 @@ function Friends({ userId, user, db }) {
                 if (!Array.isArray(data)) {
                     throw new Error("Formato dati API non valido: la risposta non è un array.");
                 }
-                setAllPokemonCards(data.map(card => ({
+                setFriendPokemonCards(data.map(card => ({
                     cardId: card.id,
                     cardName: card.name,
                     rarity: card.rarity || 'N/A',
@@ -618,7 +673,7 @@ function Friends({ userId, user, db }) {
                 console.error("Errore nel recupero di tutte le carte Pokémon:", err);
                 setError("Impossibile caricare le carte Pokémon per la visualizzazione degli amici.");
                 showMessage("Errore nel caricamento delle carte Pokémon per gli amici. Riprova più tardi.", 'error');
-                setAllPokemonCards([]); // Ensure cards are empty on error
+                setFriendPokemonCards([]); // Ensure cards are empty on error
             }
         };
         fetchAllPokemonCards();
@@ -643,6 +698,84 @@ function Friends({ userId, user, db }) {
         return () => unsubscribe();
     }, [userId, db]);
 
+    // Fetch Pokemon cards when viewing friend's collection
+    useEffect(() => {
+        const fetchPokemonCards = async () => {
+            if (!viewingFriendCollection) return;
+            
+            setLoading(true);
+            try {
+                const response = await fetch('https://api.tcgdex.net/v2/it/series/tcgp');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                const sets = data.sets || [];
+                const allCards = [];
+                
+                for (const set of sets) {
+                    const setResponse = await fetch(`https://api.tcgdex.net/v2/it/sets/${set.id}`);
+                    if (setResponse.ok) {
+                        const setData = await setResponse.json();
+                        if (setData.cards) {
+                            const cardsWithSetInfo = setData.cards.map(card => ({
+                                ...card,
+                                setName: set.name,
+                                setId: set.id
+                            }));
+                            allCards.push(...cardsWithSetInfo);
+                        }
+                    }
+                }
+                
+                setFriendPokemonCards(allCards);
+
+                // Calcola immediatamente le statistiche
+                if (allCards.length > 0) {
+                    const cardsBySet = allCards.reduce((acc, card) => {
+                        if (!acc[card.setId]) {
+                            acc[card.setId] = {
+                                name: card.setName,
+                                cards: []
+                            };
+                        }
+                        acc[card.setId].cards.push(card);
+                        return acc;
+                    }, {});
+
+                    const stats = {};
+                    Object.entries(cardsBySet).forEach(([setId, setData]) => {
+                        const totalCardsInSet = setData.cards.length;
+                        let uniqueCards = 0;
+
+                        setData.cards.forEach(card => {
+                            const quantity = friendCollectionData[card.id] || 0;
+                            if (quantity > 0) {
+                                uniqueCards++;
+                            }
+                        });
+
+                        stats[setId] = {
+                            name: setData.name,
+                            totalCards: totalCardsInSet,
+                            uniqueCards: uniqueCards
+                        };
+                    });
+
+                    setExpansionStats(stats);
+                }
+            } catch (err) {
+                console.error("Errore nel recupero delle carte Pokémon:", err);
+                setError("Impossibile caricare le carte Pokémon.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchPokemonCards();
+    }, [viewingFriendCollection, friendCollectionData]);
+
     // Listen for friend's collection when viewingFriendCollection changes
     useEffect(() => {
         if (!viewingFriendCollection || !db) {
@@ -653,7 +786,8 @@ function Friends({ userId, user, db }) {
         const friendCollectionRef = doc(db, 'collections', viewingFriendCollection);
         const unsubscribe = onSnapshot(friendCollectionRef, (docSnap) => {
             if (docSnap.exists()) {
-                setFriendCollectionData(docSnap.data() || {});
+                const collectionData = docSnap.data() || {};
+                setFriendCollectionData(collectionData);
             } else {
                 setFriendCollectionData({});
                 showMessage("La collezione dell'amico non esiste o è vuota.", 'info');
@@ -665,6 +799,37 @@ function Friends({ userId, user, db }) {
 
         return () => unsubscribe();
     }, [viewingFriendCollection, db]);
+
+    // Add new effect to fetch viewing friend's profile
+    useEffect(() => {
+        if (!viewingFriendCollection || !db) {
+            setViewingFriendProfile(null);
+            return;
+        }
+
+        const friendProfileRef = doc(db, 'users', viewingFriendCollection);
+        const unsubscribe = onSnapshot(friendProfileRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setViewingFriendProfile(docSnap.data());
+            } else {
+                setViewingFriendProfile({ displayName: 'Utente Sconosciuto' });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [viewingFriendCollection, db]);
+
+    // Filtra le carte in base alla ricerca e al set selezionato
+    const filteredCards = useMemo(() => {
+        if (!friendPokemonCards.length) return [];
+        
+        return friendPokemonCards.filter(card => {
+            const matchesSearch = !searchTerm || 
+                card.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSet = currentSet === 'all' || card.setId === currentSet;
+            return matchesSearch && matchesSet;
+        });
+    }, [friendPokemonCards, searchTerm, currentSet]);
 
     const handleAddFriend = async () => {
         if (!friendIdInput || friendIdInput === userId) {
@@ -689,7 +854,8 @@ function Friends({ userId, user, db }) {
             if (!currentUserProfileSnap.exists()) {
                 // If user profile doesn't exist, create it with the friend
                 await setDoc(currentUserProfileRef, {
-                    displayName: user.email || `Utente-${userId.substring(0, 8)}`,
+                    displayName: userProfile?.displayName || `Utente-${userId.substring(0, 8)}`,
+                    email: user.email,
                     friends: [friendIdInput]
                 });
             } else {
@@ -699,12 +865,15 @@ function Friends({ userId, user, db }) {
                     showMessage("Questo utente è già tuo amico!", 'error');
                     return;
                 }
+
+                // Aggiorna l'array degli amici usando arrayUnion per evitare duplicati
                 await updateDoc(currentUserProfileRef, {
                     friends: arrayUnion(friendIdInput)
                 });
             }
 
-            showMessage(`${friendProfileSnap.data().displayName} aggiunto come amico!`, 'success');
+            const friendDisplayName = friendProfileSnap.data().displayName || 'Utente sconosciuto';
+            showMessage(`${friendDisplayName} aggiunto come amico!`, 'success');
             setFriendIdInput('');
         } catch (err) {
             console.error("Errore nell'aggiunta dell'amico:", err);
@@ -729,108 +898,221 @@ function Friends({ userId, user, db }) {
     };
 
     const getCardNameById = (cardId) => {
-        const card = allPokemonCards.find(c => c.cardId === cardId);
+        const card = friendPokemonCards.find(c => c.cardId === cardId);
         return card ? card.cardName : `Carta Sconosciuta (${cardId})`;
     };
 
+    const handleViewCollection = (friendId) => {
+        if (viewingFriendCollection === friendId) {
+            setViewingFriendCollection(null);
+            setShowDetailedCollection(false);
+        } else {
+            setViewingFriendCollection(friendId);
+            setShowDetailedCollection(false);
+        }
+    };
+
+    const handleViewDetailedCollection = () => {
+        setShowDetailedCollection(true);
+    };
+
+    const totalCards = Object.values(friendCollectionData).reduce((sum, qty) => sum + qty, 0);
+
     return (
         <div className="bg-white bg-opacity-90 p-6 rounded-lg shadow-xl">
-            <h2 className="text-3xl font-bold text-red-600 mb-6 text-center">I Miei Amici</h2>
+            {!showDetailedCollection ? (
+                <>
+                    <h2 className="text-3xl font-bold text-red-600 mb-6 text-center">I Miei Amici</h2>
 
-            <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
-                <h3 className="text-2xl font-semibold text-blue-700 mb-4">Il Tuo ID</h3>
-                <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
-                    <code className="flex-grow p-3 bg-gray-100 rounded font-mono text-sm break-all">{userId}</code>
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(userId);
-                            showMessage('ID copiato negli appunti!', 'success');
-                        }}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
-                    >
-                        Copia ID
-                    </button>
-                </div>
-                <p className="mt-2 text-sm text-gray-600">Condividi questo ID con i tuoi amici per permettere loro di aggiungerti!</p>
-            </div>
-
-            <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
-                <h3 className="text-2xl font-semibold text-blue-700 mb-4">Aggiungi un Amico</h3>
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <input
-                        type="text"
-                        placeholder="Inserisci l'ID dell'amico"
-                        value={friendIdInput}
-                        onChange={(e) => setFriendIdInput(e.target.value)}
-                        className="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
-                    <button
-                        onClick={handleAddFriend}
-                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
-                    >
-                        Aggiungi
-                    </button>
-                </div>
-            </div>
-
-            <div className="mb-8">
-                <h3 className="text-2xl font-semibold text-blue-700 mb-4 border-b-2 border-blue-300 pb-2">
-                    Lista Amici ({userProfile?.friends?.length || 0})
-                </h3>
-                {userProfile?.friends && userProfile.friends.length > 0 ? (
-                    <ul className="space-y-4">
-                        {userProfile.friends.map((friendId) => (
-                            <FriendItem
-                                key={friendId}
-                                friendId={friendId}
-                                userId={userId}
-                                db={db}
-                                appId={appId}
-                                onRemove={handleRemoveFriend}
-                                onViewCollection={setViewingFriendCollection}
-                                isViewing={viewingFriendCollection === friendId}
-                            />
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="text-gray-600">Non hai ancora amici. Aggiungine alcuni usando l'ID utente!</p>
-                )}
-            </div>
-
-            {viewingFriendCollection && (
-                <div className="mt-10 p-6 bg-green-50 rounded-lg shadow-xl">
-                    <h3 className="text-2xl font-bold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
-                        Collezione di {viewingFriendCollection}
-                    </h3>
-                    {Object.keys(friendCollectionData).length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-green-100">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">
-                                            Nome Carta
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">
-                                            Quantità
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {Object.entries(friendCollectionData).map(([cardId, quantity]) => (
-                                        <tr key={cardId} className="hover:bg-green-50 transition-colors duration-200">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {getCardNameById(cardId)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {quantity}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
+                        <h3 className="text-2xl font-semibold text-blue-700 mb-4">Il Tuo ID</h3>
+                        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
+                            <code className="flex-grow p-3 bg-gray-100 rounded font-mono text-sm break-all">{userId}</code>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(userId);
+                                    showMessage('ID copiato negli appunti!', 'success');
+                                }}
+                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                            >
+                                Copia ID
+                            </button>
                         </div>
+                        <p className="mt-2 text-sm text-gray-600">Condividi questo ID con i tuoi amici per permettere loro di aggiungerti!</p>
+                    </div>
+
+                    <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
+                        <h3 className="text-2xl font-semibold text-blue-700 mb-4">Aggiungi un Amico</h3>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <input
+                                type="text"
+                                placeholder="Inserisci l'ID dell'amico"
+                                value={friendIdInput}
+                                onChange={(e) => setFriendIdInput(e.target.value)}
+                                className="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                            <button
+                                onClick={handleAddFriend}
+                                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                            >
+                                Aggiungi
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mb-8">
+                        <h3 className="text-2xl font-semibold text-blue-700 mb-4 border-b-2 border-blue-300 pb-2">
+                            Lista Amici ({userProfile?.friends?.length || 0})
+                        </h3>
+                        {userProfile?.friends && userProfile.friends.length > 0 ? (
+                            <ul className="space-y-4">
+                                {userProfile.friends.map((friendId) => (
+                                    <FriendItem
+                                        key={friendId}
+                                        friendId={friendId}
+                                        db={db}
+                                        appId={appId}
+                                        onRemove={handleRemoveFriend}
+                                        onViewCollection={handleViewCollection}
+                                        isViewing={viewingFriendCollection === friendId}
+                                    />
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-gray-600">Non hai ancora amici. Aggiungine alcuni usando l'ID utente!</p>
+                        )}
+                    </div>
+
+                    {viewingFriendCollection && (
+                        <div className="mt-10 p-6 bg-green-50 rounded-lg shadow-xl">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-bold text-green-700">
+                                    Collezione di {viewingFriendProfile?.displayName || 'Caricamento...'}
+                                </h3>
+                                <button
+                                    onClick={handleViewDetailedCollection}
+                                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                                >
+                                    Visualizza Collezione Completa
+                                </button>
+                            </div>
+
+                            <h3 className="text-2xl font-semibold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
+                                Dettagli per Espansione
+                            </h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Object.entries(expansionStats).map(([setId, stats]) => (
+                                    <div key={setId} className="bg-white p-4 rounded-lg shadow-md">
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-2">{stats.name}</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <p className="text-gray-600">
+                                                Carte Totali: <span className="font-medium text-green-600">{stats.uniqueCards}/{stats.totalCards}</span>
+                                            </p>
+                                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                                <div 
+                                                    className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                                                    style={{ width: `${(stats.uniqueCards / stats.totalCards) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-3xl font-bold text-red-600">
+                            Collezione di {viewingFriendProfile?.displayName || 'Caricamento...'}
+                        </h2>
+                        <button
+                            onClick={() => setShowDetailedCollection(false)}
+                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                        >
+                            Torna alla Lista Amici
+                        </button>
+                    </div>
+
+                    <div className="space-y-6 mb-8">
+                        {/* Set selector */}
+                        <div>
+                            <label className="block text-gray-700 text-sm font-bold mb-3">
+                                Seleziona Set:
+                            </label>
+                            <select
+                                value={currentSet}
+                                onChange={(e) => setCurrentSet(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                            >
+                                <option value="all">Tutte le carte</option>
+                                {sets.map((set) => (
+                                    <option key={set.id} value={set.id}>
+                                        {set.name} ({set.cardCount?.official || 0} carte)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Search bar */}
+                        <div>
+                            <label className="block text-gray-700 text-sm font-bold mb-3">
+                                Cerca per Nome:
+                            </label>
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Cerca una carta..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                            />
+                        </div>
+                    </div>
+
+                    {loading ? (
+                        <div className="text-center py-10">
+                            <p className="text-xl text-gray-600">Caricamento collezione...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="text-center py-10">
+                            <p className="text-xl text-red-600">{error}</p>
+                        </div>
+                    ) : filteredCards.length === 0 ? (
+                        <p className="text-center text-gray-600">
+                            Nessuna carta corrisponde alla ricerca.
+                        </p>
                     ) : (
-                        <p className="text-gray-600">Questa collezione è vuota.</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {filteredCards.map((card) => (
+                                <div key={card.id} className="bg-gray-50 p-3 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+                                    {card.image && (
+                                        <div className="mb-3 relative pt-[139.7%]">
+                                            <img
+                                                src={`${card.image}/high.png`}
+                                                alt={card.name}
+                                                className="absolute top-0 left-0 w-full h-full object-contain rounded-lg"
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="space-y-2">
+                                        <h3 className="text-sm font-semibold text-gray-800 truncate">
+                                            {card.name}
+                                            <span className="text-xs text-gray-500 ml-1">#{card.localId}</span>
+                                        </h3>
+                                        <p className="text-xs text-gray-600">{card.setName}</p>
+                                        <div className="flex items-center space-x-2">
+                                            <label className="text-xs text-gray-600">Quantità:</label>
+                                            <span className="text-sm font-medium text-gray-900">
+                                                {friendCollectionData[card.id] || 0}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
@@ -840,27 +1122,30 @@ function Friends({ userId, user, db }) {
 
 // Friend Item Component
 function FriendItem({ friendId, db, appId, onRemove, onViewCollection, isViewing }) {
-    const [friendDisplayName, setFriendDisplayName] = useState(friendId);
+    const [friendProfile, setFriendProfile] = useState(null);
 
     useEffect(() => {
         const friendProfileRef = doc(db, 'users', friendId);
         const unsubscribe = onSnapshot(friendProfileRef, (docSnap) => {
             if (docSnap.exists()) {
-                setFriendDisplayName(docSnap.data().displayName);
+                setFriendProfile(docSnap.data());
             } else {
-                setFriendDisplayName(`Utente Sconosciuto (${friendId})`);
+                setFriendProfile({ displayName: `Utente Sconosciuto` });
             }
         }, (err) => {
-            console.error("Errore nel recupero del nome visualizzato dell'amico:", err);
-            setFriendDisplayName(`Errore (${friendId})`);
+            console.error("Errore nel recupero del profilo dell'amico:", err);
+            setFriendProfile({ displayName: `Errore` });
         });
         return () => unsubscribe();
     }, [friendId, db]);
 
+    // Crea una versione abbreviata dell'ID
+    const shortId = friendId.substring(0, 8) + "...";
+
     return (
         <li className="flex items-center justify-between bg-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
             <span className="text-lg font-medium text-gray-800 break-all">
-                {friendDisplayName} <span className="text-sm text-gray-500 font-mono">({friendId})</span>
+                {friendProfile?.displayName} <span className="text-sm text-gray-500 font-mono">({shortId})</span>
             </span>
             <div className="flex space-x-2">
                 <button
@@ -942,25 +1227,39 @@ function Share({ userId, db }) {
                 const collection = docSnap.data() || {};
                 setUserCollection(collection);
                 
-                // Calculate stats per expansion
-                const stats = {};
-                pokemonCards.forEach(card => {
-                    if (!stats[card.setId]) {
-                        stats[card.setId] = {
+                // Raggruppa prima le carte per set
+                const cardsBySet = pokemonCards.reduce((acc, card) => {
+                    if (!acc[card.setId]) {
+                        acc[card.setId] = {
                             name: card.setName,
-                            totalCards: 0,
-                            uniqueCollected: 0,
-                            totalCollected: 0
+                            cards: []
                         };
                     }
-                    
-                    stats[card.setId].totalCards++;
-                    
-                    const quantity = collection[card.id] || 0;
-                    if (quantity > 0) {
-                        stats[card.setId].uniqueCollected++;
-                        stats[card.setId].totalCollected += quantity;
-                    }
+                    acc[card.setId].cards.push(card);
+                    return acc;
+                }, {});
+
+                // Calcola le statistiche per ogni set
+                const stats = {};
+                Object.entries(cardsBySet).forEach(([setId, setData]) => {
+                    const totalCardsInSet = setData.cards.length;
+                    let uniqueCollected = 0;
+                    let totalCollected = 0;
+
+                    setData.cards.forEach(card => {
+                        const quantity = collection[card.id] || 0;
+                        if (quantity > 0) {
+                            uniqueCollected++;
+                            totalCollected += quantity;
+                        }
+                    });
+
+                    stats[setId] = {
+                        name: setData.name,
+                        totalCards: totalCardsInSet,
+                        uniqueCollected: uniqueCollected,
+                        totalCollected: totalCollected
+                    };
                 });
                 
                 setExpansionStats(stats);
