@@ -97,16 +97,28 @@ function App() {
                 const userProfileRef = doc(db, 'users', currentUser.uid);
                 const userProfileSnap = await getDoc(userProfileRef);
                 
-                if (!userProfileSnap.exists()) {
-                    try {
+                // Check if collection exists
+                const collectionRef = doc(db, 'collections', currentUser.uid);
+                const collectionSnap = await getDoc(collectionRef);
+                
+                try {
+                    // Create user profile if it doesn't exist
+                    if (!userProfileSnap.exists()) {
                         await setDoc(userProfileRef, {
                             displayName: currentUser.email || `Utente-${currentUser.uid.substring(0, 8)}`,
                             friends: []
                         });
-                    } catch (error) {
-                        console.error('Errore nella creazione del profilo:', error);
-                        showMessage('Errore nella creazione del profilo utente', 'error');
                     }
+
+                    // Create empty collection if it doesn't exist
+                    if (!collectionSnap.exists()) {
+                        await setDoc(collectionRef, {});
+                        console.log('Created empty collection for existing user:', currentUser.uid);
+                    }
+                    
+                } catch (error) {
+                    console.error('Errore nella creazione del profilo o della collezione:', error);
+                    showMessage('Errore nella creazione del profilo utente o della collezione', 'error');
                 }
                 
                 setCurrentPage('collection');
@@ -216,7 +228,8 @@ function App() {
                 )}
                 {currentPage === 'friends' && user && (
                     <Friends 
-                        userId={userId} 
+                        userId={userId}
+                        user={user}
                         db={db} 
                     />
                 )}
@@ -574,7 +587,7 @@ function Collection({ userId, db }) {
 }
 
 // Friends Component
-function Friends({ userId, db }) {
+function Friends({ userId, user, db }) {
     const [userProfile, setUserProfile] = useState(null);
     const [friendIdInput, setFriendIdInput] = useState('');
     const [viewingFriendCollection, setViewingFriendCollection] = useState(null); // userId of friend being viewed
@@ -615,12 +628,12 @@ function Friends({ userId, db }) {
     useEffect(() => {
         if (!userId || !db) return;
 
-        const userProfileRef = doc(db, `artifacts/${appId}/public/data/userProfiles`, userId);
+        const userProfileRef = doc(db, 'users', userId);
         const unsubscribe = onSnapshot(userProfileRef, (docSnap) => {
             if (docSnap.exists()) {
                 setUserProfile(docSnap.data());
             } else {
-                setUserProfile({ displayName: `Utente-${userId.substring(0, 0)}`, friends: [] });
+                setUserProfile({ displayName: `Utente-${userId.substring(0, 8)}`, friends: [] });
             }
         }, (err) => {
             console.error("Errore nel recupero del profilo utente:", err);
@@ -628,7 +641,7 @@ function Friends({ userId, db }) {
         });
 
         return () => unsubscribe();
-    }, [userId, db, appId]);
+    }, [userId, db]);
 
     // Listen for friend's collection when viewingFriendCollection changes
     useEffect(() => {
@@ -637,7 +650,7 @@ function Friends({ userId, db }) {
             return;
         }
 
-        const friendCollectionRef = doc(db, `artifacts/${appId}/users/${viewingFriendCollection}/collections/myCollection`);
+        const friendCollectionRef = doc(db, 'collections', viewingFriendCollection);
         const unsubscribe = onSnapshot(friendCollectionRef, (docSnap) => {
             if (docSnap.exists()) {
                 setFriendCollectionData(docSnap.data() || {});
@@ -651,7 +664,7 @@ function Friends({ userId, db }) {
         });
 
         return () => unsubscribe();
-    }, [viewingFriendCollection, db, appId]);
+    }, [viewingFriendCollection, db]);
 
     const handleAddFriend = async () => {
         if (!friendIdInput || friendIdInput === userId) {
@@ -660,7 +673,8 @@ function Friends({ userId, db }) {
         }
 
         try {
-            const friendProfileRef = doc(db, `artifacts/${appId}/public/data/userProfiles`, friendIdInput);
+            // Check if friend exists in the users collection
+            const friendProfileRef = doc(db, 'users', friendIdInput);
             const friendProfileSnap = await getDoc(friendProfileRef);
 
             if (!friendProfileSnap.exists()) {
@@ -668,10 +682,28 @@ function Friends({ userId, db }) {
                 return;
             }
 
-            const currentUserProfileRef = doc(db, `artifacts/${appId}/public/data/userProfiles`, userId);
-            await updateDoc(currentUserProfileRef, {
-                friends: arrayUnion(friendIdInput)
-            });
+            // Get current user's profile
+            const currentUserProfileRef = doc(db, 'users', userId);
+            const currentUserProfileSnap = await getDoc(currentUserProfileRef);
+
+            if (!currentUserProfileSnap.exists()) {
+                // If user profile doesn't exist, create it with the friend
+                await setDoc(currentUserProfileRef, {
+                    displayName: user.email || `Utente-${userId.substring(0, 8)}`,
+                    friends: [friendIdInput]
+                });
+            } else {
+                // If profile exists, update the friends array
+                const currentFriends = currentUserProfileSnap.data().friends || [];
+                if (currentFriends.includes(friendIdInput)) {
+                    showMessage("Questo utente è già tuo amico!", 'error');
+                    return;
+                }
+                await updateDoc(currentUserProfileRef, {
+                    friends: arrayUnion(friendIdInput)
+                });
+            }
+
             showMessage(`${friendProfileSnap.data().displayName} aggiunto come amico!`, 'success');
             setFriendIdInput('');
         } catch (err) {
@@ -682,13 +714,13 @@ function Friends({ userId, db }) {
 
     const handleRemoveFriend = async (friendToRemoveId) => {
         try {
-            const currentUserProfileRef = doc(db, `artifacts/${appId}/public/data/userProfiles`, userId);
+            const currentUserProfileRef = doc(db, 'users', userId);
             await updateDoc(currentUserProfileRef, {
                 friends: arrayRemove(friendToRemoveId)
             });
             showMessage('Amico rimosso.', 'success');
             if (viewingFriendCollection === friendToRemoveId) {
-                setViewingFriendCollection(null); // Stop viewing if removed
+                setViewingFriendCollection(null);
             }
         } catch (err) {
             console.error("Errore nella rimozione dell'amico:", err);
@@ -811,7 +843,7 @@ function FriendItem({ friendId, db, appId, onRemove, onViewCollection, isViewing
     const [friendDisplayName, setFriendDisplayName] = useState(friendId);
 
     useEffect(() => {
-        const friendProfileRef = doc(db, `artifacts/${appId}/public/data/userProfiles`, friendId);
+        const friendProfileRef = doc(db, 'users', friendId);
         const unsubscribe = onSnapshot(friendProfileRef, (docSnap) => {
             if (docSnap.exists()) {
                 setFriendDisplayName(docSnap.data().displayName);
@@ -823,7 +855,7 @@ function FriendItem({ friendId, db, appId, onRemove, onViewCollection, isViewing
             setFriendDisplayName(`Errore (${friendId})`);
         });
         return () => unsubscribe();
-    }, [friendId, db, appId]);
+    }, [friendId, db]);
 
     return (
         <li className="flex items-center justify-between bg-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
