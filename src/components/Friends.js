@@ -193,53 +193,53 @@ export const Friends = ({ userId, user, db, showMessage }) => {
     };
 
     return (
-        <div className="bg-white bg-opacity-90 p-6 rounded-lg shadow-xl">
+        <div className="bg-white bg-opacity-90 p-4 sm:p-6 rounded-lg shadow-xl">
             {!showDetailedCollection ? (
                 <>
-                    <h2 className="text-3xl font-bold text-red-600 mb-6 text-center">I Miei Amici</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-red-600 mb-4 sm:mb-6 text-center">I Miei Amici</h2>
 
-                    <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
-                        <h3 className="text-2xl font-semibold text-blue-700 mb-4">Il Tuo ID</h3>
-                        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
-                            <code className="flex-grow p-3 bg-gray-100 rounded font-mono text-sm break-all">{userId}</code>
+                    <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-blue-50 rounded-lg shadow-inner">
+                        <h3 className="text-xl sm:text-2xl font-semibold text-blue-700 mb-3 sm:mb-4">Il Tuo ID</h3>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg shadow-sm">
+                            <code className="p-2 sm:p-3 bg-gray-100 rounded font-mono text-xs sm:text-sm break-all">{userId}</code>
                             <button
                                 onClick={() => {
                                     navigator.clipboard.writeText(userId);
                                     showMessage('ID copiato negli appunti!', 'success');
                                 }}
-                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                                className="px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300 whitespace-nowrap"
                             >
                                 Copia ID
                             </button>
                         </div>
-                        <p className="mt-2 text-sm text-gray-600">Condividi questo ID con i tuoi amici per permettere loro di aggiungerti!</p>
+                        <p className="mt-2 text-xs sm:text-sm text-gray-600">Condividi questo ID con i tuoi amici per permettere loro di aggiungerti!</p>
                     </div>
 
-                    <div className="mb-8 p-4 bg-blue-50 rounded-lg shadow-inner">
-                        <h3 className="text-2xl font-semibold text-blue-700 mb-4">Aggiungi un Amico</h3>
-                        <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-blue-50 rounded-lg shadow-inner">
+                        <h3 className="text-xl sm:text-2xl font-semibold text-blue-700 mb-3 sm:mb-4">Aggiungi un Amico</h3>
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                             <input
                                 type="text"
                                 placeholder="Inserisci l'ID dell'amico"
                                 value={friendIdInput}
                                 onChange={(e) => setFriendIdInput(e.target.value)}
-                                className="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                className="flex-grow p-2 sm:p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
                             />
                             <button
                                 onClick={handleAddFriend}
-                                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                                className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg shadow-md transition-all duration-300 whitespace-nowrap"
                             >
                                 Aggiungi
                             </button>
                         </div>
                     </div>
 
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-semibold text-blue-700 mb-4 border-b-2 border-blue-300 pb-2">
+                    <div className="mb-6 sm:mb-8">
+                        <h3 className="text-xl sm:text-2xl font-semibold text-blue-700 mb-3 sm:mb-4 border-b-2 border-blue-300 pb-2">
                             Lista Amici ({userProfile?.friends?.length || 0})
                         </h3>
                         {userProfile?.friends && userProfile.friends.length > 0 ? (
-                            <ul className="space-y-4">
+                            <ul className="space-y-3 sm:space-y-4">
                                 {userProfile.friends.map((friendId) => (
                                     <FriendItem
                                         key={friendId}
@@ -252,7 +252,7 @@ export const Friends = ({ userId, user, db, showMessage }) => {
                                 ))}
                             </ul>
                         ) : (
-                            <p className="text-gray-600">Non hai ancora amici. Aggiungine alcuni usando l'ID utente!</p>
+                            <p className="text-sm sm:text-base text-gray-600">Non hai ancora amici. Aggiungine alcuni usando l'ID utente!</p>
                         )}
                     </div>
 
@@ -409,22 +409,22 @@ const FriendItem = ({ friendId, db, onRemove, onViewCollection, isViewing }) => 
     const shortId = friendId.substring(0, 8) + "...";
 
     return (
-        <li className="flex items-center justify-between bg-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+        <li className="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 space-y-3 sm:space-y-0">
             <span className="text-lg font-medium text-gray-800 break-all">
-                {friendProfile?.displayName} <span className="text-sm text-gray-500 font-mono">({shortId})</span>
+                {friendProfile?.displayName} <span className="text-sm text-gray-500 font-mono block sm:inline">({shortId})</span>
             </span>
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                 <button
                     onClick={() => onViewCollection(isViewing ? null : friendId)}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                         isViewing ? 'bg-green-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
-                    } shadow-md`}
+                    } shadow-md w-full sm:w-auto`}
                 >
                     {isViewing ? 'Nascondi Collezione' : 'Vedi Collezione'}
                 </button>
                 <button
                     onClick={() => onRemove(friendId)}
-                    className="px-4 py-2 rounded-lg font-semibold bg-red-500 hover:bg-red-600 text-white shadow-md transition-all duration-300"
+                    className="px-4 py-2 rounded-lg font-semibold bg-red-500 hover:bg-red-600 text-white shadow-md transition-all duration-300 w-full sm:w-auto"
                 >
                     Rimuovi
                 </button>
