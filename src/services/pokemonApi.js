@@ -47,7 +47,7 @@ export const pokemonApi = {
             cardsCache.set(cacheKey, cards);
             return cards;
         } catch (error) {
-            console.error('Error fetching set cards:', error);
+            console.error(`Error fetching set cards for ${setId}:`, error);
             throw error;
         }
     },
@@ -63,8 +63,12 @@ export const pokemonApi = {
             const allCards = [];
 
             for (const set of sets) {
-                const cards = await this.getSetCards(set.id);
-                allCards.push(...cards);
+                try {
+                    const cards = await this.getSetCards(set.id);
+                    allCards.push(...cards);
+                } catch (error) {
+                    console.error(`Failed to fetch cards for set ${set.name} (${set.id}):`, error);
+                }
             }
 
             cardsCache.set(cacheKey, allCards);

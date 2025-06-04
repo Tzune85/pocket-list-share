@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { VirtualizedCardGrid } from './VirtualizedCardGrid';
 import { useCollection } from '../hooks/useCollection';
 import { pokemonApi } from '../services/pokemonApi';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export const Collection = ({ userId, db }) => {
     const { userCollection, loading: collectionLoading, error: collectionError, updateCardQuantity } = useCollection(db, userId);
@@ -57,6 +58,46 @@ export const Collection = ({ userId, db }) => {
             return matchesSearch && matchesOwned;
         });
     }, [pokemonCards, searchTerm, showOnlyOwned, userCollection]);
+
+    useEffect(() => {
+        if (!userId || !db) return;
+
+        const collectionRef = doc(db, 'collections', userId);
+        const unsubscribe = onSnapshot(collectionRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const collection = docSnap.data() || {};
+                
+                // Group cards by set
+                const cardsBySet = pokemonCards.reduce((acc, card) => {
+                    if (!acc[card.setId]) {
+                        acc[card.setId] = {
+                            name: card.setName,
+                            cards: []
+                        };
+                    }
+                    acc[card.setId].cards.push(card);
+                    return acc;
+                }, {});
+
+                // Calculate stats for each set
+                Object.entries(cardsBySet).forEach(([setId, setData]) => {
+                    const totalCardsInSet = setData.cards.length;
+                    let uniqueCollected = 0;
+                    let totalCollected = 0;
+
+                    setData.cards.forEach(card => {
+                        const quantity = collection[card.id] || 0;
+                        if (quantity > 0) {
+                            uniqueCollected++;
+                            totalCollected += quantity;
+                        }
+                    });
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [userId, db, pokemonCards]);
 
     if (loading || collectionLoading) {
         return <div className="text-center text-white text-xl mt-10">Caricamento carte Pokémon...</div>;
