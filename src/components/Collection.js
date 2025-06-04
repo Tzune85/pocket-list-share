@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { VirtualizedCardGrid } from './VirtualizedCardGrid';
 import { useCollection } from '../hooks/useCollection';
 import { pokemonApi } from '../services/pokemonApi';
@@ -177,4 +178,9 @@ export const Collection = ({ userId, db }) => {
             )}
         </div>
     );
+};
+
+Collection.propTypes = {
+    userId: PropTypes.string.isRequired,
+    db: PropTypes.object.isRequired
 }; 

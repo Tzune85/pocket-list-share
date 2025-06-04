@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 export const Auth = ({ auth, setCurrentPage, showMessage, onRegister }) => {
@@ -97,4 +98,11 @@ export const Auth = ({ auth, setCurrentPage, showMessage, onRegister }) => {
             </p>
         </div>
     );
+};
+
+Auth.propTypes = {
+    auth: PropTypes.object.isRequired,
+    setCurrentPage: PropTypes.func.isRequired,
+    showMessage: PropTypes.func.isRequired,
+    onRegister: PropTypes.func.isRequired
 }; 

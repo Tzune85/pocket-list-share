@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import PropTypes from 'prop-types';
 import { FixedSizeGrid, FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { LazyImage } from './LazyImage';
@@ -202,4 +203,17 @@ export const VirtualizedCardGrid = ({
             />
         </>
     );
+};
+
+VirtualizedCardGrid.propTypes = {
+    cards: PropTypes.arrayOf(
+        PropTypes.shape({
+            id: PropTypes.string.isRequired,
+            cardName: PropTypes.string.isRequired,
+            image: PropTypes.string,
+            setName: PropTypes.string
+        })
+    ).isRequired,
+    userCollection: PropTypes.object.isRequired,
+    onQuantityChange: PropTypes.func.isRequired
 }; 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 export const Share = ({ userId, db, showMessage }) => {
@@ -144,4 +145,10 @@ export const Share = ({ userId, db, showMessage }) => {
             </div>
         </div>
     );
+};
+
+Share.propTypes = {
+    userId: PropTypes.string.isRequired,
+    db: PropTypes.object.isRequired,
+    showMessage: PropTypes.func.isRequired
 }; 
