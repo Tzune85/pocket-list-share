@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { initializeApp, getApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, arrayUnion, arrayRemove, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from './firebase-config';
 import { Collection } from './components/Collection';
 import { Friends } from './components/Friends';
@@ -34,10 +34,6 @@ try {
 } catch (err) {
   console.error('Error enabling offline persistence:', err);
 }
-
-// App constants
-const appId = 'pokemon-tcg-pocket'; // ID predefinito per l'applicazione
-const initialAuthToken = null; // Non usiamo più il token iniziale
 
 // Connection status check
 function useNetworkStatus() {
@@ -92,7 +88,7 @@ function App() {
 
     // Listen for current user's profile
     useEffect(() => {
-        if (!userId || !db) return;
+        if (!userId) return;
 
         const userProfileRef = doc(db, 'users', userId);
         const unsubscribe = onSnapshot(userProfileRef, (docSnap) => {
@@ -102,7 +98,7 @@ function App() {
         });
 
         return () => unsubscribe();
-    }, [userId, db]);
+    }, [userId]);
 
     useEffect(() => {
         // Firebase Authentication Listener
@@ -293,7 +289,7 @@ function Auth({ auth, setCurrentPage, showMessage, onRegister }) {
                     showMessage('Il nickname è obbligatorio per la registrazione', 'error');
                     return;
                 }
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await createUserWithEmailAndPassword(auth, email, password);
                 onRegister(nickname); // Pass the nickname to the parent component
                 showMessage('Registrazione riuscita! Benvenuto!', 'success');
             } else {
@@ -382,7 +378,6 @@ function Share({ userId, db }) {
     const [userCollection, setUserCollection] = useState({});
     const [pokemonCards, setPokemonCards] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [expansionStats, setExpansionStats] = useState({});
 
     // Fetch all Pokémon cards once
@@ -416,7 +411,6 @@ function Share({ userId, db }) {
                 setPokemonCards(allCards);
             } catch (err) {
                 console.error("Errore nel recupero delle carte Pokémon:", err);
-                setError("Impossibile caricare le carte Pokémon per il riepilogo.");
                 showMessage("Errore nel caricamento delle carte Pokémon per il riepilogo. Riprova più tardi.", 'error');
                 setPokemonCards([]);
             } finally {

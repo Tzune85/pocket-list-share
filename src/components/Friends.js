@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { VirtualizedCardGrid } from './VirtualizedCardGrid';
 import { pokemonApi } from '../services/pokemonApi';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot } from 'firebase/firestore';
 
 export const Friends = ({ userId, user, db, showMessage }) => {
     const [userProfile, setUserProfile] = useState(null);
@@ -258,19 +258,19 @@ export const Friends = ({ userId, user, db, showMessage }) => {
 
                     {viewingFriendCollection && (
                         <div className="mt-10 p-6 bg-green-50 rounded-lg shadow-xl">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-1xl font-bold text-green-700">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6 mb-6">
+                                <h3 className="text-xl font-bold text-green-700 break-words max-w-full sm:max-w-[60%]">
                                     Collezione di {viewingFriendProfile?.displayName || 'Caricamento...'}
                                 </h3>
                                 <button
                                     onClick={handleViewDetailedCollection}
-                                    className="px-1 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                                    className="w-full sm:w-auto px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300 whitespace-nowrap flex items-center justify-center"
                                 >
                                     Visualizza Collezione Completa
                                 </button>
                             </div>
 
-                            <h3 className="text-1.5xl font-semibold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
+                            <h3 className="text-lg font-semibold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
                                 Dettagli per Espansione
                             </h3>
                             

@@ -80,7 +80,7 @@ export const VirtualizedCardGrid = ({
                 </div>
             </div>
         );
-    }, [userCollection, onQuantityChange, isEditable]);
+    }, [userCollection, onQuantityChange, isEditable, cards, setSelectedCard]);
 
     // Renderizza una cella della griglia (vista desktop)
     const GridCell = useCallback(({ columnIndex, rowIndex, style, data }) => {
