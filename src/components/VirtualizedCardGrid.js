@@ -1,16 +1,16 @@
-import React, { useCallback, useMemo } from 'react';
-import { FixedSizeGrid } from 'react-window';
+import React, { useCallback, useState } from 'react';
+import { FixedSizeGrid, FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { LazyImage } from './LazyImage';
+import { ImageModal } from './ImageModal';
 
 // Dimensioni base per desktop
 const BASE_CARD_WIDTH = 200;
 const BASE_CARD_HEIGHT = 285;
 const GRID_GAP = 16;
 
-// Dimensioni minime per mobile
-const MIN_CARD_WIDTH = 150;
-const MIN_CARD_HEIGHT = 220;
+// Altezza riga per la vista mobile
+const ROW_HEIGHT = 64;
 
 export const VirtualizedCardGrid = ({ 
     cards, 
@@ -18,34 +18,52 @@ export const VirtualizedCardGrid = ({
     onQuantityChange,
     isEditable = true 
 }) => {
-    // Calcola le dimensioni delle carte in base alla larghezza dello schermo
-    const getCardDimensions = useCallback((width) => {
-        // Se la larghezza è inferiore a 640px (breakpoint sm di Tailwind)
-        if (width < 640) {
-            // Calcola quante carte possono stare in una riga con MIN_CARD_WIDTH
-            const possibleColumns = Math.floor((width + GRID_GAP) / (MIN_CARD_WIDTH + GRID_GAP));
-            // Calcola la larghezza effettiva della carta
-            const actualCardWidth = Math.floor((width - (GRID_GAP * (possibleColumns - 1))) / possibleColumns);
-            // Calcola l'altezza proporzionale
-            const actualCardHeight = Math.floor(actualCardWidth * (MIN_CARD_HEIGHT / MIN_CARD_WIDTH));
-            return { cardWidth: actualCardWidth, cardHeight: actualCardHeight };
-        }
-        return { cardWidth: BASE_CARD_WIDTH, cardHeight: BASE_CARD_HEIGHT };
-    }, []);
+    const [selectedCard, setSelectedCard] = useState(null);
 
-    // Calcola il numero di colonne in base alla larghezza disponibile
-    const getColumnCount = useCallback((width) => {
-        const { cardWidth } = getCardDimensions(width);
-        return Math.floor((width + GRID_GAP) / (cardWidth + GRID_GAP));
-    }, [getCardDimensions]);
+    // Renderizza una riga della tabella (vista mobile)
+    const TableRow = useCallback(({ index, style }) => {
+        const card = cards[index];
+        const quantity = userCollection[card.id] || 0;
 
-    // Calcola il numero di righe necessarie
-    const getRowCount = useCallback((columnCount) => {
-        return Math.ceil(cards.length / columnCount);
-    }, [cards.length]);
+        return (
+            <div 
+                style={style}
+                className="flex items-center px-4 py-2 border-b border-gray-200 bg-white hover:bg-gray-50 cursor-pointer"
+                onClick={() => setSelectedCard(card)}
+            >
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                        {card.cardName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                        {card.setName} #{card.localId}
+                    </p>
+                </div>
+                <div className="flex items-center ml-4">
+                    {isEditable ? (
+                        <input
+                            type="number"
+                            min="0"
+                            value={quantity}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onQuantityChange(card.id, parseInt(e.target.value, 10) || 0);
+                            }}
+                            className="w-14 p-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center text-sm"
+                            onClick={e => e.stopPropagation()}
+                        />
+                    ) : (
+                        <span className="text-sm font-medium text-gray-900">
+                            {quantity}
+                        </span>
+                    )}
+                </div>
+            </div>
+        );
+    }, [userCollection, onQuantityChange, isEditable]);
 
-    // Renderizza una singola cella della griglia
-    const Cell = useCallback(({ columnIndex, rowIndex, style, data }) => {
+    // Renderizza una cella della griglia (vista desktop)
+    const GridCell = useCallback(({ columnIndex, rowIndex, style, data }) => {
         const { cards, columnCount, dimensions } = data;
         const index = rowIndex * columnCount + columnIndex;
         
@@ -56,7 +74,6 @@ export const VirtualizedCardGrid = ({
         const card = cards[index];
         const quantity = userCollection[card.id] || 0;
 
-        // Aggiorniamo lo stile della cella per un layout migliore
         const cellStyle = {
             ...style,
             left: Number(style.left) + GRID_GAP / 2,
@@ -66,13 +83,11 @@ export const VirtualizedCardGrid = ({
             padding: 0,
         };
 
-        const imageSize = Math.min(dimensions.cardWidth - 16, dimensions.cardHeight - 100);
-
         return (
             <div style={cellStyle} className="flex flex-col">
                 <div className="bg-gray-50 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-2 h-full">
                     {card.image && (
-                        <div className="relative mb-2" style={{ width: '100%', height: imageSize, minHeight: imageSize }}>
+                        <div className="relative w-full pt-[100%] mb-2">
                             <LazyImage
                                 src={`${card.image}/high.png`}
                                 alt={card.cardName}
@@ -80,24 +95,24 @@ export const VirtualizedCardGrid = ({
                             />
                         </div>
                     )}
-                    <div className="space-y-1 text-xs sm:text-sm">
-                        <h3 className="font-semibold text-gray-800 truncate">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-semibold text-gray-800 truncate">
                             {card.cardName}
-                            <span className="text-gray-500 ml-1">#{card.localId}</span>
+                            <span className="text-xs text-gray-500 ml-1">#{card.localId}</span>
                         </h3>
-                        <p className="text-gray-600">{card.setName}</p>
+                        <p className="text-xs text-gray-600">{card.setName}</p>
                         <div className="flex items-center justify-between">
-                            <label className="text-gray-600">Quantità:</label>
+                            <label className="text-xs text-gray-600">Quantità:</label>
                             {isEditable ? (
                                 <input
                                     type="number"
                                     min="0"
                                     value={quantity}
                                     onChange={(e) => onQuantityChange(card.id, parseInt(e.target.value, 10) || 0)}
-                                    className="w-14 p-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center"
+                                    className="w-16 p-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center text-sm"
                                 />
                             ) : (
-                                <span className="font-medium text-gray-900">{quantity}</span>
+                                <span className="text-sm font-medium text-gray-900">{quantity}</span>
                             )}
                         </div>
                     </div>
@@ -106,32 +121,65 @@ export const VirtualizedCardGrid = ({
         );
     }, [userCollection, onQuantityChange, isEditable]);
 
-    return (
-        <div style={{ width: '100%', height: 'calc(100vh - 300px)' }}>
-            <AutoSizer>
-                {({ height, width }) => {
-                    const dimensions = getCardDimensions(width);
-                    const columnCount = getColumnCount(width);
-                    const rowCount = getRowCount(columnCount);
+    // Calcola il numero di colonne in base alla larghezza disponibile
+    const getColumnCount = (width) => {
+        return Math.floor((width + GRID_GAP) / (BASE_CARD_WIDTH + GRID_GAP));
+    };
 
-                    return (
-                        <FixedSizeGrid
-                            className="scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
-                            columnCount={columnCount}
-                            columnWidth={dimensions.cardWidth + GRID_GAP}
-                            height={height}
-                            rowCount={rowCount}
-                            rowHeight={dimensions.cardHeight + GRID_GAP}
-                            width={width}
-                            itemData={{ cards, columnCount, dimensions }}
-                            overscanRowCount={2}
-                            style={{ padding: `${GRID_GAP / 2}px` }}
-                        >
-                            {Cell}
-                        </FixedSizeGrid>
-                    );
-                }}
-            </AutoSizer>
-        </div>
+    // Calcola il numero di righe necessarie
+    const getRowCount = (columnCount) => {
+        return Math.ceil(cards.length / columnCount);
+    };
+
+    return (
+        <>
+            <div style={{ width: '100%', height: 'calc(100vh - 300px)' }}>
+                <AutoSizer>
+                    {({ height, width }) => {
+                        // Se la larghezza è inferiore a 640px (breakpoint sm di Tailwind), usa la vista tabellare
+                        if (width < 640) {
+                            return (
+                                <FixedSizeList
+                                    className="scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+                                    height={height}
+                                    itemCount={cards.length}
+                                    itemSize={ROW_HEIGHT}
+                                    width={width}
+                                    overscanCount={5}
+                                >
+                                    {TableRow}
+                                </FixedSizeList>
+                            );
+                        }
+
+                        // Altrimenti usa la vista a griglia
+                        const columnCount = getColumnCount(width);
+                        const rowCount = getRowCount(columnCount);
+
+                        return (
+                            <FixedSizeGrid
+                                className="scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+                                columnCount={columnCount}
+                                columnWidth={BASE_CARD_WIDTH + GRID_GAP}
+                                height={height}
+                                rowCount={rowCount}
+                                rowHeight={BASE_CARD_HEIGHT + GRID_GAP}
+                                width={width}
+                                itemData={{ cards, columnCount, dimensions: { cardWidth: BASE_CARD_WIDTH, cardHeight: BASE_CARD_HEIGHT } }}
+                                overscanRowCount={2}
+                                style={{ padding: `${GRID_GAP / 2}px` }}
+                            >
+                                {GridCell}
+                            </FixedSizeGrid>
+                        );
+                    }}
+                </AutoSizer>
+            </div>
+
+            <ImageModal 
+                card={selectedCard} 
+                onClose={() => setSelectedCard(null)} 
+            />
+        </>
     );
 }; 
