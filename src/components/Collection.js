@@ -1,64 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { VirtualizedCardGrid } from './VirtualizedCardGrid';
 import { useCollection } from '../hooks/useCollection';
-import { pokemonApi } from '../services/pokemonApi';
+import { usePokemonCards } from '../hooks/usePokemonCards';
+import { useSearch } from '../hooks/useSearch';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 export const Collection = ({ userId, db }) => {
     const { userCollection, loading: collectionLoading, error: collectionError, updateCardQuantity } = useCollection(db, userId);
-    const [pokemonCards, setPokemonCards] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [currentSet, setCurrentSet] = useState('all');
-    const [sets, setSets] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showOnlyOwned, setShowOnlyOwned] = useState(false);
-
-    // Fetch sets
-    useEffect(() => {
-        const fetchSets = async () => {
-            try {
-                const setsData = await pokemonApi.getSets();
-                setSets(setsData);
-            } catch (err) {
-                console.error("Errore nel recupero dei set:", err);
-                setError("Impossibile caricare i set. Riprova più tardi.");
-            }
-        };
-        fetchSets();
-    }, []);
-
-    // Fetch cards based on selected set
-    useEffect(() => {
-        const fetchCards = async () => {
-            setLoading(true);
-            try {
-                let cards;
-                if (currentSet === 'all') {
-                    cards = await pokemonApi.getAllCards();
-                } else {
-                    cards = await pokemonApi.getSetCards(currentSet);
-                }
-                setPokemonCards(cards);
-            } catch (err) {
-                console.error("Errore nel recupero delle carte:", err);
-                setError("Impossibile caricare le carte. Riprova più tardi.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCards();
-    }, [currentSet]);
-
-    // Filter cards based on search term and owned status
-    const filteredCards = useMemo(() => {
-        return pokemonCards.filter(card => {
-            const matchesSearch = !searchTerm || card.cardName.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesOwned = !showOnlyOwned || (userCollection[card.id] || 0) > 0;
-            return matchesSearch && matchesOwned;
-        });
-    }, [pokemonCards, searchTerm, showOnlyOwned, userCollection]);
+    const { pokemonCards, loading: cardsLoading, error: cardsError, currentSet, setCurrentSet, sets } = usePokemonCards();
+    const { searchTerm, setSearchTerm, showOnlyOwned, setShowOnlyOwned, filteredItems: filteredCards } = useSearch(pokemonCards, userCollection);
 
     useEffect(() => {
         if (!userId || !db) return;
@@ -100,12 +51,12 @@ export const Collection = ({ userId, db }) => {
         return () => unsubscribe();
     }, [userId, db, pokemonCards]);
 
-    if (loading || collectionLoading) {
+    if (cardsLoading || collectionLoading) {
         return <div className="text-center text-white text-xl mt-10">Caricamento carte Pokémon...</div>;
     }
 
-    if (error || collectionError) {
-        return <div className="text-center text-red-500 mt-10">{error || collectionError}</div>;
+    if (cardsError || collectionError) {
+        return <div className="text-center text-red-500 mt-10">{cardsError || collectionError}</div>;
     }
 
     return (
