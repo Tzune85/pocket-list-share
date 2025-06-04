@@ -1,4 +1,6 @@
-const API_BASE_URL = 'https://api.tcgdex.net/v2/it';
+import config from '../config';
+
+const BASE_URL = config.api.pokemonBaseUrl;
 let cardsCache = new Map();
 let setsCache = null;
 
@@ -9,7 +11,7 @@ export const pokemonApi = {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/series/tcgp`);
+            const response = await fetch(`${BASE_URL}/series/tcgp`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -29,7 +31,7 @@ export const pokemonApi = {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/sets/${setId}`);
+            const response = await fetch(`${BASE_URL}/sets/${setId}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -65,9 +67,14 @@ export const pokemonApi = {
             for (const set of sets) {
                 try {
                     const cards = await this.getSetCards(set.id);
-                    allCards.push(...cards);
+                    const cardsWithSetInfo = cards.map(card => ({
+                        ...card,
+                        setName: set.name,
+                        setId: set.id
+                    }));
+                    allCards.push(...cardsWithSetInfo);
                 } catch (error) {
-                    console.error(`Failed to fetch cards for set ${set.name} (${set.id}):`, error);
+                    console.error(`Error fetching cards for set ${set.id}:`, error);
                 }
             }
 
