@@ -41,17 +41,37 @@ export const VirtualizedCardGrid = ({
                 </div>
                 <div className="flex items-center ml-4">
                     {isEditable ? (
-                        <input
-                            type="number"
-                            min="0"
-                            value={quantity}
-                            onChange={(e) => {
-                                e.stopPropagation();
-                                onQuantityChange(card.id, parseInt(e.target.value, 10) || 0);
-                            }}
-                            className="w-14 p-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center text-sm"
-                            onClick={e => e.stopPropagation()}
-                        />
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQuantityChange(card.id, quantity + 1);
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full shadow-sm transition-colors"
+                            >
+                                +
+                            </button>
+                            <input
+                                type="number"
+                                min="0"
+                                value={quantity}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    onQuantityChange(card.id, parseInt(e.target.value, 10) || 0);
+                                }}
+                                className="w-14 p-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center text-sm"
+                                onClick={e => e.stopPropagation()}
+                            />
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQuantityChange(card.id, Math.max(0, quantity - 1));
+                                }}
+                                className="w-6 h-6 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-full shadow-sm transition-colors"
+                            >
+                                -
+                            </button>
+                        </div>
                     ) : (
                         <span className="text-sm font-medium text-gray-900">
                             {quantity}

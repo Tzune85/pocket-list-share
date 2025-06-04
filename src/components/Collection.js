@@ -67,7 +67,7 @@ export const Collection = ({ userId, db }) => {
     }
 
     return (
-        <div className="bg-white bg-opacity-90 p-8 rounded-lg shadow-xl">
+        <div className="bg-white bg-opacity-90 p-6 rounded-lg shadow-xl">
             <h2 className="hidden sm:block text-3xl font-bold text-red-600 mb-8 text-center">
                 La Mia Collezione di Carte Pokémon
             </h2>

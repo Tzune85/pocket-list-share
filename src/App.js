@@ -194,7 +194,7 @@ function App() {
             )}
             <nav className="bg-white bg-opacity-90 shadow-lg p-6 flex justify-between items-center flex-wrap">
                 <h1 className="text-3xl font-bold text-red-600 flex items-center mb-4 md:mb-0">
-                    <img src="https://placehold.co/40x40/FFD700/000000?text=P" alt="Pokemon Icon" className="mr-4 rounded-full" />
+                    <img src="/favicon.svg" alt="Pokeball" className="w-10 h-10 mr-4" />
                     Collezione Pokémon Pocket
                 </h1>
                 <div className="flex flex-wrap gap-4 justify-center">
@@ -244,7 +244,7 @@ function App() {
                 </div>
             </nav>
 
-            <main className="container mx-auto p-8">
+            <main className="container mx-auto p-6">
                 {currentPage === 'collection' && user && (
                     <Collection 
                         userId={userId} 
@@ -308,7 +308,7 @@ function Auth({ auth, setCurrentPage, showMessage, onRegister }) {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-white bg-opacity-90 p-8 rounded-lg shadow-xl mt-10">
+        <div className="max-w-md mx-auto bg-white bg-opacity-90 p-6 rounded-lg shadow-xl mt-10">
             <h2 className="text-3xl font-bold text-center text-red-600 mb-6">
                 {isRegistering ? 'Registrati' : 'Accedi'}
             </h2>

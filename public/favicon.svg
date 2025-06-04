@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer circle -->
+  <circle cx="16" cy="16" r="15" fill="white" stroke="black" stroke-width="2"/>
+  
+  <!-- Red top half -->
+  <path d="M16 1C24.2843 1 31 7.71573 31 16H16V1Z" fill="#FF0000"/>
+  <path d="M1 16C1 7.71573 7.71573 1 16 1V16H1Z" fill="#FF0000"/>
+  
+  <!-- Center circle -->
+  <circle cx="16" cy="16" r="4" fill="white" stroke="black" stroke-width="2"/>
+  
+  <!-- Center dot -->
+  <circle cx="16" cy="16" r="2" fill="#333333"/>
+  
+  <!-- Horizontal line -->
+  <line x1="1" y1="16" x2="31" y2="16" stroke="black" stroke-width="2"/>
+</svg> 
