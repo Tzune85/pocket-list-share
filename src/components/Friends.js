@@ -259,18 +259,18 @@ export const Friends = ({ userId, user, db, showMessage }) => {
                     {viewingFriendCollection && (
                         <div className="mt-10 p-6 bg-green-50 rounded-lg shadow-xl">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-bold text-green-700">
+                                <h3 className="text-1xl font-bold text-green-700">
                                     Collezione di {viewingFriendProfile?.displayName || 'Caricamento...'}
                                 </h3>
                                 <button
                                     onClick={handleViewDetailedCollection}
-                                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
+                                    className="px-1 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-md transition-all duration-300"
                                 >
                                     Visualizza Collezione Completa
                                 </button>
                             </div>
 
-                            <h3 className="text-2xl font-semibold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
+                            <h3 className="text-1.5xl font-semibold text-green-700 mb-4 border-b-2 border-green-300 pb-2">
                                 Dettagli per Espansione
                             </h3>
                             
