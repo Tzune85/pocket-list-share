@@ -242,6 +242,14 @@ function App() {
                         />
                     )}
                 </main>
+
+                <footer className="bg-white bg-opacity-90 shadow-lg mt-auto py-2 px-3 md:p-6">
+                    <div className="container mx-auto text-center text-xs md:text-sm text-gray-600">
+                        <p className="mb-0 md:mb-1">
+                            © 1995-{new Date().getFullYear()} The Pokémon Company. Pokémon e i nomi dei personaggi Pokémon sono marchi registrati di Nintendo. Tutti i diritti riservati.
+                        </p>
+                    </div>
+                </footer>
             </div>
         </ErrorBoundary>
     );
