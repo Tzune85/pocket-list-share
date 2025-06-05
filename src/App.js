@@ -143,7 +143,7 @@ function App() {
 
     return (
         <ErrorBoundary>
-            <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 font-inter text-gray-800">
+            <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 font-inter text-gray-800 flex flex-col">
                 <div id="message-box" className="hidden"></div>
                 {!isOnline && (
                     <div className="bg-yellow-500 text-white px-4 py-2 text-center">
@@ -202,7 +202,7 @@ function App() {
                     </div>
                 </nav>
 
-                <main className="container mx-auto p-6">
+                <main className="container mx-auto p-6 flex-grow">
                     {/* Message Toast */}
                     {isVisible && message && (
                         <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${
@@ -243,10 +243,10 @@ function App() {
                     )}
                 </main>
 
-                <footer className="bg-white bg-opacity-90 shadow-lg mt-auto py-2 px-3 md:p-6">
-                    <div className="container mx-auto text-center text-xs md:text-sm text-gray-600">
-                        <p className="mb-0 md:mb-1">
-                            © 1995-{new Date().getFullYear()} The Pokémon Company. Pokémon e i nomi dei personaggi Pokémon sono marchi registrati di Nintendo. Tutti i diritti riservati.
+                <footer className="bg-white bg-opacity-90 shadow-lg py-0.5 px-1 mt-auto text-[10px] md:text-xs md:py-1 md:px-2">
+                    <div className="container mx-auto text-center">
+                        <p className="m-0 leading-tight">
+                            © 1995-{new Date().getFullYear()} The Pokémon Company. Pokémon e i nomi dei personaggi Pokémon sono marchi registrati di Nintendo.
                         </p>
                     </div>
                 </footer>
