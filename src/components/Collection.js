@@ -11,34 +11,6 @@ export const Collection = ({ userId, db }) => {
     const { pokemonCards, loading: cardsLoading, error: cardsError, currentSet, setCurrentSet, sets } = usePokemonCards();
     const { searchTerm, setSearchTerm, showOnlyOwned, setShowOnlyOwned, filteredItems: filteredCards } = useSearch(pokemonCards, userCollection);
 
-    useEffect(() => {
-        if (!userId || !db) return;
-
-        const collectionRef = doc(db, 'collections', userId);
-        const unsubscribe = onSnapshot(collectionRef, (docSnap) => {
-            if (docSnap.exists()) {
-                // Group cards by set
-                const cardsBySet = pokemonCards.reduce((acc, card) => {
-                    if (!acc[card.setId]) {
-                        acc[card.setId] = {
-                            name: card.setName,
-                            cards: []
-                        };
-                    }
-                    acc[card.setId].cards.push(card);
-                    return acc;
-                }, {});
-
-                // Calculate stats for each set
-                Object.entries(cardsBySet).forEach(([setId, setData]) => {
-                    // Removed unused variables calculation
-                });
-            }
-        });
-
-        return () => unsubscribe();
-    }, [userId, db, pokemonCards]);
-
     if (cardsLoading || collectionLoading) {
         return <div className="text-center text-white text-xl mt-10">Caricamento carte Pokémon...</div>;
     }

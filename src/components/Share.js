@@ -102,7 +102,7 @@ export const Share = ({ userId, db, showMessage }) => {
         });
 
         return () => unsubscribe();
-    }, [userId, db, pokemonCards, showMessage]);
+    }, [userId, db, pokemonCards]);
 
     const totalCards = Object.values(userCollection).reduce((sum, qty) => sum + qty, 0);
 

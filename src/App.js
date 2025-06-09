@@ -121,7 +121,7 @@ function App() {
         });
 
         return () => unsubscribe();
-    }, [pendingNickname]);
+    }, [pendingNickname, showMessage, db]);
 
     const handleRegister = (nickname) => {
         setPendingNickname(nickname);
