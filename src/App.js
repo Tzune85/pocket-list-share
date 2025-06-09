@@ -53,6 +53,7 @@ function App() {
     const [pendingNickname, setPendingNickname] = useState(null);
     const isOnline = useNetworkStatus();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!isOnline) {
             showMessage('Sei offline. Alcune funzionalità potrebbero non essere disponibili.', 'warning');
