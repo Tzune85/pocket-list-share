@@ -46,7 +46,7 @@ export const Share = ({ userId, db, showMessage }) => {
             }
         };
         fetchPokemonCards();
-    }, []);
+    }, [showMessage]);
 
     // Listen for user's collection changes and calculate expansion stats
     useEffect(() => {
@@ -102,7 +102,7 @@ export const Share = ({ userId, db, showMessage }) => {
         });
 
         return () => unsubscribe();
-    }, [userId, db, pokemonCards]);
+    }, [userId, db, pokemonCards, showMessage]);
 
     const totalCards = Object.values(userCollection).reduce((sum, qty) => sum + qty, 0);
 

@@ -50,7 +50,7 @@ export const useAuth = (db) => {
         });
 
         return () => unsubscribe();
-    }, [db]);
+    }, [auth, db]);
 
     const handleSignOut = async () => {
         try {

@@ -17,8 +17,6 @@ export const Collection = ({ userId, db }) => {
         const collectionRef = doc(db, 'collections', userId);
         const unsubscribe = onSnapshot(collectionRef, (docSnap) => {
             if (docSnap.exists()) {
-                const collection = docSnap.data() || {};
-                
                 // Group cards by set
                 const cardsBySet = pokemonCards.reduce((acc, card) => {
                     if (!acc[card.setId]) {
@@ -33,17 +31,7 @@ export const Collection = ({ userId, db }) => {
 
                 // Calculate stats for each set
                 Object.entries(cardsBySet).forEach(([setId, setData]) => {
-                    const totalCardsInSet = setData.cards.length;
-                    let uniqueCollected = 0;
-                    let totalCollected = 0;
-
-                    setData.cards.forEach(card => {
-                        const quantity = collection[card.id] || 0;
-                        if (quantity > 0) {
-                            uniqueCollected++;
-                            totalCollected += quantity;
-                        }
-                    });
+                    // Removed unused variables calculation
                 });
             }
         });
